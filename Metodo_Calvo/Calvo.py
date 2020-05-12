@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 from frangi_2d import frangi_2d
 import matplotlib
 import pickle
-matplotlib.rcParams["backend"] = "Agg"
 from stentiford import stentiford
 
 class Branch:
@@ -35,7 +34,7 @@ def ShowBranchs(img,path):
 
 # Separar dois grupos (terminações e bifurcaçoes) Checked
 # Separar caminhos que terminam TermTerm, BiTerm, BiBi 
-def tracking(img):
+def tracking_and_remove_branch(img):
     bifurcation_points = []
     end_points = []
     row_max,col_max = img.shape
@@ -61,20 +60,30 @@ def tracking(img):
             elif neighbor in bifurcation_points:
                 branch = Branch(end_point,path,path_len)
                 branchs.append(branch)
-                ShowBranchs(img,path)
                 fim = 1
-                if path_len < 10:
-                    path.pop(-1)
+                if path_len < 10: ## Threshold
+                    bifurcation = path.pop(-1)
+                    img[bifurcation] = img[bifurcation] - 50
                     for x,y in path:
                         img[x,y] = 0
-                plt.imshow(img,"gray")
-                plt.show()
             else: 
                 previous_point = end_point
                 end_point = neighbor
 
         
     return img
+
+def local_analysis_classification(img,radius,p):
+    R1 = radius - p
+    R2 = radius
+    R3 = radius + p
+
+    # Aplicar formulas passando por todos os pixeis acima de 150, verificando se são B ou F
+    # for
+        # for
+            #funçao 
+
+    pass
 
 '''Implementação do método sugerido por Calvo em Automatic detection and characterisation of retinal vessel
 tree bifurcations and crossovers in eye fundus images'''
@@ -144,7 +153,7 @@ def Calvo_implementation(Image,Th,Tw):
                 
                    
 
-    tracking(Image_sum)
+    tracking_and_remove_branch(Image_sum)
 
     plt.imshow(Image_sum,"gray")
     plt.show()
