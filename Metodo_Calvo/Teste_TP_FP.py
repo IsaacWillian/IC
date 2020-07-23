@@ -7,15 +7,18 @@
         Image_and = np.bitwise_and(Image_obtida,Image_gold)
         Image_or = np.bitwise_or(Image_obtida,Image_gold)
         Image_or = np.bitwise_and(Image_or,Image_or)
-        Image_gold_invert = np.logical_not(Image_gold_
+        Image_gold_invert = np.logical_not(Image_gold)
         Image_exseg = np.logical_and(Image_gold_invert,Image_obtida)
-        
+        #True Negative == And(obtida_invert,Image_gold_invert)  Background e foi detectado como background
+        #False negative == And(obtida_invert,Image_gold)  É vaso e foi detectado como background
+        #Salvar sum(Image_gold)
+        #Salva sum(Image_obtida)
 
-        and_sum = np.sum(Image_and)
-        or_sum = np.sum(Image_or)
+        and_sum = np.sum(Image_and) #True Positive == and_sum È vaso e foi detectado como vaso
+        or_sum = np.sum(Image_or)   
         I_U = and_sum/or_sum
         tp = and_sum/np.sum(Image_gold)
-        fp = np.sum(Image_exseg)/np.sum(Image_obtida)
+        fp = np.sum(Image_exseg)/np.sum(Image_obtida)  # False Positive == Sum(Image_exseg) Background e foi detectado como vaso
 
         if maior[0] < I_U :
             maior[0]=I_U
