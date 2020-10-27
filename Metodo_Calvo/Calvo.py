@@ -10,6 +10,19 @@ import matplotlib
 import pickle
 from stentiford import stentiford
 from Ordenacao_Perimetro import ordenar_perimetro
+import counting_points as count
+import os
+from PIL import Image  
+
+def plot_image(img,title="1"):
+    print(type(img))
+    plt.imshow(img,"gray")
+    plt.axis("off")
+    plt.title(title)
+    plt.tight_layout()
+    plt.show()
+    plt.imsave(title,img.astype(np.uint8),cmap="gray",format='pdf')
+    
 
 class Branch:
     def __init__(self,initial_point,path,path_len):
@@ -46,8 +59,7 @@ def ShowBranchs(img,path):
     for x,y in path:
         img_rgb[x,y] = [255,0,0]    
 
-    plt.imshow(img_rgb)
-    plt.show()
+    #plot_image(img_rgb,"branch")
 
 def get_features_points(img):
     bifurcation_points = []
@@ -75,7 +87,7 @@ def tracking_and_remove_branchs(img):
                 neighbor = SearchNeighbor(img,point,path)[0]
                 path_len +=1
                 path.append(neighbor)
-                if neighbor in bifurcations:
+                if (neighbor in bifurcations) or (neighbor in ends):
                     fim = 1
                     branch = Branch(end_point,path,path_len)
                     img= remove_branch(img,branch)                                            
@@ -167,16 +179,16 @@ def local_analysis_classification(img,radius,p):
     
                 img_color = DrawRadius(img_color,point,[R1,R2,R3])
 
-    #ShowPoints(img)
-    #plt.imshow(img_color)
-    #plt.show()
+    ShowPoints(img)
+    #plot_image(img_color,"radius")
+    
     return img,crossover_points,bifurcation_points
 
 def DrawRadius(img,point,radius):
     for r in radius:
         rr,cc = skidraw.circle_perimeter(point[0],point[1],r)
         img[rr,cc] = (255,0,255)
-
+    
     return img
 
 def count_transitions(point,raio,img):
@@ -191,7 +203,7 @@ def count_transitions(point,raio,img):
        
     for row,col in zip(rr,cc):
         result = abs(img[rr_ant,cc_ant] - img[row,col])
-        if result == 1 and point == (445,361):
+        if result == 1:
             img_color[row,col] = (255,255,0)
         soma += result
         rr_ant = row
@@ -209,7 +221,7 @@ def count_transitions(point,raio,img):
 
 def Cros(img,point,R):
     result = count_transitions(point,R,img)
-    if result != 4: 
+    if result != 4: #VERIFICAR PORQUE != e NÂO return 1 se >3
         return 0
     else: 
         return 1  
@@ -235,7 +247,7 @@ def local_analysis(img,point,R):
 def topological_analysis(img,NotClassified_points,crossover_points,radius,graph,map_pos_to_index):
     crossover_in_pairs,NotClassified_points = find_pairs(NotClassified_points,crossover_points,radius)
     crossover_in_pairs,NotClassified_points = pairs_is_connected(NotClassified_points,crossover_in_pairs,graph,map_pos_to_index)
-    #ShowPairs(img,crossover_in_pairs)
+    ShowPairs(img,crossover_in_pairs)
 
     return img,NotClassified_points,crossover_in_pairs
 
@@ -263,8 +275,7 @@ def ShowPairs(img,pairs):
         rr,cc = skidraw.line(m[0],m[1],pair[1][0],pair[1][1])
         img_rgb[rr,cc] = [255,0,0]
     
-    #plt.imshow(img_rgb)
-    #plt.show()
+    #image(img_rgb,"Pares de crossovers")
 
 def find_pairs(NotClassified_points,crossover_points,radius):
     pairs = []
@@ -299,18 +310,17 @@ def ShowPoints(img):  # e perimetros  print
     for row in range(row_max):
         for col in range(col_max):
             if img[row,col] == 150:
-                rr,cc = skidraw.circle(row,col,5)
+                rr,cc = skidraw.circle_perimeter(row,col,5)
                 img_rgb[rr,cc] = [255,0,0]
             elif img[row,col] == 200:
-                rr,cc = skidraw.circle(row,col,5)
+                rr,cc = skidraw.circle_perimeter(row,col,5)
                 img_rgb[rr,cc] = [0,255,0]
 
-    #plt.imshow(img_rgb)
-    #plt.show()
+    #plot_image(img_rgb,"Bifurcações(Vermelhos) e Crossover(Verdes)")
 
 
-def PointsNotClassified(Image,NotClassified_points,bifurcation_points,Rb):
-    print("Inicio = ",NotClassified_points,bifurcation_points)
+def PointsNotClassified(img,NotClassified_points,bifurcation_points,Rb):
+    
     pairs = []
     no_more_pairs = False
     while (no_more_pairs == False):
@@ -332,118 +342,120 @@ def PointsNotClassified(Image,NotClassified_points,bifurcation_points,Rb):
 
     bifurcation_points = bifurcation_points + NotClassified_points #Pontos que não entram na classificação de crossover vão para bifurcações
     NotClassified_points = pairs
-    print("Fim = ",NotClassified_points,bifurcation_points)
+    
 
     return bifurcation_points,NotClassified_points
 
 
 
 
-def ShowResult(img,bifurcations,crossovers_in_pairs):
+def ShowResult(img,bifurcations,crossovers_in_pairs,NotClassified_points,Rc):
     img = img.copy()
+    img = skicolor.gray2rgb(img)
     for bifur in bifurcations:
-        rr,cc = skidraw.circle_perimeter(bifur[0],bifur[1],7)
-        img[rr,cc] = 255
+        rr,cc = skidraw.circle_perimeter(bifur[0],bifur[1],5)
+        img[rr,cc] = (255,0,0)
 
     for cross in crossovers_in_pairs:
-        rr,cc = skidraw.rectangle_perimeter((cross[0][0]-3,cross[0][1]-3),(cross[0][0]+3,cross[0][1]+3))
-        img[rr,cc] = 255
+        rr,cc = skidraw.circle_perimeter(((cross[0][0]+cross[1][0])//2),((cross[0][1]+cross[1][1])//2),Rc)
+        img[rr,cc] = (0,255,0)
 
-    #plt.imshow(img,"gray")
-    #plt.show()   
+    for NotClassified in NotClassified_points :
+        rr,cc = skidraw.circle_perimeter(NotClassified[0],NotClassified[1],5)
+        img[rr,cc] = (0,0,255)
+
+    plot_image(img,"Result20")   
+
+def remove_pad(padding,bifurcation_points,crossover_in_pairs):
+    bifurcation_points = [(bifur[0]-padding,bifur[1]-padding) for bifur in bifurcation_points]
+    crossover_in_pairs = [((cross[0][0]-padding,cross[0][1]-padding),(cross[1][0]-padding,cross[1][1]-padding)) 
+                            for cross in crossover_in_pairs]
+
+    return bifurcation_points,crossover_in_pairs
 
 '''Implementação do método sugerido por Calvo em Automatic detection and characterisation of retinal vessel
 tree bifurcations and crossovers in eye fundus images'''
-def Calvo_implementation(img,Th,Tw,elem,threshold,dilation):
+def Calvo_implementation(img):
+    Rc = 15
+    p = 5
+    Rb = 30
+    padding = Rb//2
     x_add = [-1,0,1,1,1,0,-1,-1,-1]# Começa com a ultima posição pois se faz atual-anterior 
     y_add = [-1,-1,-1,0,1,1,1,0,-1]
-
-    elem = np.ones((12,12))
-    Image = img[:,:,1]
-    Image = morph.black_tophat(Image,elem)
-    arr_sigma = np.linspace(0.1, 3, 6)
-    Image = frangi_2d(Image,arr_sigma)
-    Image_array= Image.flatten()
-    Image_array = np.sort(Image_array,axis=None)
-    Tw = np.percentile(Image_array,Tw)
-    Th = np.percentile(Image_array,Th)
-    #  Tw_zip = zip(percentile_array,Tw)
-    #  print(list(Tw_zip))
-
-    Image = skifilter.apply_hysteresis_threshold(Image,Tw,Th)
-
-    L,N = ndi.label(Image)
-    T = ndi.sum(Image,L, range(1,N+1))
-    threshold = 200
-    comp2remove = np.nonzero(T<threshold)[0] + 1
-
-    num_rows,num_cols = L.shape
-
-    Image = np.copy(Image)
-
-    for row in range(num_rows):
-        for col in range(num_cols):
-            label =  L[row,col]
-            if label in comp2remove:
-                Image[row,col] = 0
-
-    dilation= 1
-    # Image = ndi.median_filter(Image,3)
-    for i in range(dilation):
-        Image = morph.binary_dilation(Image)
-
-    for i in range(dilation):
-        Image = morph.binary_erosion(Image)
+    NotClassified_points = []
     
+    img = np.pad(img,padding,mode="edge")
+    print(img.shape)
 
-    #plt.imshow(Image,"gray")
-    #plt.show()
-    '''
-    Image = Image.astype(np.int16)
-    Image = stentiford(Image)
-
+    img = img.astype(np.int16)
+    img = img//255
+    #plot_image(img,"1")
+    img = stentiford(img)
     
+    #plot_image(img,"2")
+
+
 
     #Percorre os vizinhos fazendo a somatória ds seu valores
-    Image_sum = Image.copy()
-    row_max, col_max = Image.shape
+    Image_sum = img.copy()
+    row_max, col_max = img.shape
     for row in range(row_max):
         for col in range(col_max): 
-            if Image[row,col] == 1:                  
+            if img[row,col] == 1:                  
                 sum = 0
                 x_ant = x_add[-1]
                 y_ant = y_add[-1]
                 for x,y in zip(x_add,y_add):
-                    sum += abs(Image[row + x_ant, col+y_ant] - Image[row+x,col+y])
+                    sum += abs(img[row + x_ant, col+y_ant] - img[row+x,col+y])
                     x_ant = x
                     y_ant = y
 
                 sum *= 0.5
                 Image_sum[row,col] = int(sum*50)
                 
-             
+    
 
-    Rc = 20
-    p = 5
-    Rb = 35
-    NotClassified_points = []
-    Image = tracking_and_remove_branchs(Image_sum)
-    Image,graph,map_pos_to_index = create_graph(Image)
-    Image,crossover_points,bifurcation_points = local_analysis_classification(Image,Rc,p)
-    Image,NotClassified_points,crossover_in_pairs = topological_analysis(Image,NotClassified_points,crossover_points,Rc,graph,map_pos_to_index)
-    bifurcation_points,NotClassified_points = PointsNotClassified(Image,NotClassified_points,bifurcation_points,Rb)
-    ShowResult(Image,bifurcation_points,crossover_in_pairs)
+    
+    img = tracking_and_remove_branchs(Image_sum)
+    img,graph,map_pos_to_index = create_graph(img)
+    img,crossover_points,bifurcation_points = local_analysis_classification(img,Rc,p)
+    img,NotClassified_points,crossover_in_pairs = topological_analysis(img,NotClassified_points,crossover_points,Rc,graph,map_pos_to_index)
+    bifurcation_points,NotClassified_points = PointsNotClassified(img,NotClassified_points,bifurcation_points,Rb)
+    ShowResult(img,bifurcation_points,crossover_in_pairs,NotClassified_points,Rc)
+
+    bifurcation_points,crossover_in_pairs = remove_pad(padding,bifurcation_points,crossover_in_pairs)
+
+    return bifurcation_points,crossover_in_pairs
+
+def middle_point_crossover(crossovers_in_pairs):
+    crossover = []
+    for cross in crossovers_in_pairs:
+        center_x = (cross[0][0] + cross[1][0])//2
+        center_y = (cross[0][1] + cross[1][1])//2
+        crossover.append((center_x,center_y))
+
+    print(crossover)
+    return crossover    
 '''
-    return Image
-
-
+Image_original = plt.imread("../Imagens/01_manual1.gif") 
+bifurcation_points,crossovers_in_pairs = Calvo_implementation(Image_original)
 '''
-Image_original = plt.imread("../Imagens/21_training.tif") 
-mask = plt.imread("../Imagens/21_training_mask.gif")
-mask = morph.binary_erosion(mask)
 
-th = 95
-tw = 90
-Image_obtida = Calvo_implementation(Image_original,th,tw,10,100,2)
-# Image_obtida = np.bitwise_and(Image_obtida,mask)
-'''
+path_results= 'Results/'
+path = 'Imagens_gold/'
+dir_pontos = os.listdir(path)
+dir_pontos.sort()
+
+for image_name in dir_pontos:
+    print(image_name)
+    Image_original = plt.imread(path+image_name)
+    bifurcation_points,crossovers_in_pairs = Calvo_implementation(Image_original)
+    crossover = middle_point_crossover(crossovers_in_pairs)
+
+    Result_dict = {'Bifurcations':bifurcation_points,'Crossover':crossover}
+    file = open(path_results+image_name.split(".")[0],'wb')
+    pickle.dump(Result_dict,file)
+    file.close()
+    print("Dump - ",image_name)
+
+
