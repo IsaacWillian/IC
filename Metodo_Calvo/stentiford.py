@@ -91,6 +91,5 @@ def stentiford(image):
             template = 1
         total_changes = total_changes + changes
 
-    print("total_changes: ", total_changes)
     return thin_image
 

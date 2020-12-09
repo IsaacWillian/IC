@@ -15,14 +15,33 @@ import os
 from PIL import Image  
 
 def plot_image(img,title="1"):
-    print(type(img))
     plt.imshow(img,"gray")
     plt.axis("off")
     plt.title(title)
     plt.tight_layout()
     plt.show()
-    plt.imsave(title,img.astype(np.uint8),cmap="gray",format='pdf')
+    #plt.imsave(title,img.astype(np.uint8),cmap="gray",format='pdf')
     
+def FillHolesinGold(Image,threshold):
+    Image = abs((Image/255)-1)
+    L,N = ndi.label(Image)
+    T = ndi.sum(Image,L, range(1,N+1))
+    comp2remove = np.nonzero(T<threshold)[0] + 1
+    
+    num_rows,num_cols = L.shape
+
+    Image = np.copy(Image)
+
+    for row in range(num_rows):
+        for col in range(num_cols):
+            label =  L[row,col]
+            if label in comp2remove:
+                Image[row,col] = 0
+                
+    
+    Image = abs((Image-1)*255)
+    return Image
+
 
 class Branch:
     def __init__(self,initial_point,path,path_len):
@@ -98,6 +117,13 @@ def tracking_and_remove_branchs(img):
     
     return img
 
+def Add_graph(graph,map_pos_to_index,feature_point,neighbor):
+    index_node_1 = map_pos_to_index[feature_point]
+    index_node_2 = map_pos_to_index[neighbor]
+    if index_node_2 not in graph[index_node_1]: 
+        graph[index_node_1].append(index_node_2)
+        graph[index_node_2].append(index_node_1)
+
 def create_graph(img):
     bifurcations,ends = get_features_points(img)
     features_points = bifurcations + ends
@@ -111,25 +137,22 @@ def create_graph(img):
     graph = [ [] for i in range (len(map_pos_to_index))]
     for feature_point in features_points:
         fim=0
-        path=[feature_point]
+        path=[]
         neighbors = SearchNeighbor(img,feature_point,path)
         for point in neighbors:
             previous_point = feature_point
             init_point = point
-            path=[init_point]
+            path=[feature_point,init_point]
             fim = 0
+            if point in features_points:
+                fim = 1
+                Add_graph(graph,map_pos_to_index,feature_point,init_point)
             while fim != 1:
                 neighbor = SearchNeighbor(img,point,path)[0]
                 path.append(neighbor)
                 if neighbor in features_points:
                     fim = 1
-                    index_node_1 = map_pos_to_index[feature_point]
-                    index_node_2 = map_pos_to_index[neighbor]
-                    if index_node_2 not in graph[index_node_1]: 
-                        graph[index_node_1].append(index_node_2)
-                        graph[index_node_2].append(index_node_1)
-                        
-                        
+                    Add_graph(graph,map_pos_to_index,feature_point,neighbor)                        
                 else: 
                     previous_point = point
                     point = neighbor
@@ -179,7 +202,7 @@ def local_analysis_classification(img,radius,p):
     
                 img_color = DrawRadius(img_color,point,[R1,R2,R3])
 
-    ShowPoints(img)
+    #ShowPoints(img)
     #plot_image(img_color,"radius")
     
     return img,crossover_points,bifurcation_points
@@ -221,18 +244,18 @@ def count_transitions(point,raio,img):
 
 def Cros(img,point,R):
     result = count_transitions(point,R,img)
-    if result != 4: #VERIFICAR PORQUE != e NÂO return 1 se >3
-        return 0
+    if result >= 4: #VERIFICAR PORQUE != e NÂO return 1 se >3
+        return 1
     else: 
-        return 1  
+        return 0
     
 
 def Bifur(img,point,R):
     result = count_transitions(point,R,img)
-    if result != 3: 
-        return 0
+    if result == 3 or result == 2: 
+        return 1
     else:
-        return 1   
+        return 0   
    
 
 def local_analysis(img,point,R):
@@ -246,8 +269,9 @@ def local_analysis(img,point,R):
 
 def topological_analysis(img,NotClassified_points,crossover_points,radius,graph,map_pos_to_index):
     crossover_in_pairs,NotClassified_points = find_pairs(NotClassified_points,crossover_points,radius)
+    #ShowPairs(img,crossover_in_pairs)
     crossover_in_pairs,NotClassified_points = pairs_is_connected(NotClassified_points,crossover_in_pairs,graph,map_pos_to_index)
-    ShowPairs(img,crossover_in_pairs)
+    #ShowPairs(img,crossover_in_pairs)
 
     return img,NotClassified_points,crossover_in_pairs
 
@@ -275,7 +299,7 @@ def ShowPairs(img,pairs):
         rr,cc = skidraw.line(m[0],m[1],pair[1][0],pair[1][1])
         img_rgb[rr,cc] = [255,0,0]
     
-    #image(img_rgb,"Pares de crossovers")
+    plot_image(img_rgb,"Pares de crossovers")
 
 def find_pairs(NotClassified_points,crossover_points,radius):
     pairs = []
@@ -298,7 +322,7 @@ def find_pairs(NotClassified_points,crossover_points,radius):
 
     NotClassified_points = NotClassified_points + crossover_points #Pontos que não entram na classificação de crossover vão para bifurcações
     crossover_points = pairs
-    
+
     return crossover_points,NotClassified_points
 
 
@@ -375,17 +399,14 @@ def remove_pad(padding,bifurcation_points,crossover_in_pairs):
 
 '''Implementação do método sugerido por Calvo em Automatic detection and characterisation of retinal vessel
 tree bifurcations and crossovers in eye fundus images'''
-def Calvo_implementation(img):
-    Rc = 15
-    p = 5
-    Rb = 30
+def Calvo_implementation(img,Rc,p,Rb):
+   
     padding = Rb//2
     x_add = [-1,0,1,1,1,0,-1,-1,-1]# Começa com a ultima posição pois se faz atual-anterior 
     y_add = [-1,-1,-1,0,1,1,1,0,-1]
     NotClassified_points = []
     
     img = np.pad(img,padding,mode="edge")
-    print(img.shape)
 
     img = img.astype(np.int16)
     img = img//255
@@ -420,6 +441,7 @@ def Calvo_implementation(img):
     img,graph,map_pos_to_index = create_graph(img)
     img,crossover_points,bifurcation_points = local_analysis_classification(img,Rc,p)
     img,NotClassified_points,crossover_in_pairs = topological_analysis(img,NotClassified_points,crossover_points,Rc,graph,map_pos_to_index)
+    #ShowResult(img,bifurcation_points,crossover_in_pairs,NotClassified_points,Rc)
     bifurcation_points,NotClassified_points = PointsNotClassified(img,NotClassified_points,bifurcation_points,Rb)
     ShowResult(img,bifurcation_points,crossover_in_pairs,NotClassified_points,Rc)
 
@@ -434,28 +456,34 @@ def middle_point_crossover(crossovers_in_pairs):
         center_y = (cross[0][1] + cross[1][1])//2
         crossover.append((center_x,center_y))
 
-    print(crossover)
+   
     return crossover    
 '''
 Image_original = plt.imread("../Imagens/01_manual1.gif") 
 bifurcation_points,crossovers_in_pairs = Calvo_implementation(Image_original)
 '''
 
-path_results= 'Results/'
-path = 'Imagens_gold/'
-dir_pontos = os.listdir(path)
-dir_pontos.sort()
+# path_results= 'Results/'
+# path = 'Imagens_gold/'
+# dir_pontos = os.listdir(path)
+# dir_pontos.sort()
 
-for image_name in dir_pontos:
-    print(image_name)
-    Image_original = plt.imread(path+image_name)
-    bifurcation_points,crossovers_in_pairs = Calvo_implementation(Image_original)
-    crossover = middle_point_crossover(crossovers_in_pairs)
+# Rc = 8
+# p = 3
+# Rb = 16
 
-    Result_dict = {'Bifurcations':bifurcation_points,'Crossover':crossover}
-    file = open(path_results+image_name.split(".")[0],'wb')
-    pickle.dump(Result_dict,file)
-    file.close()
-    print("Dump - ",image_name)
+
+# for image_name in dir_pontos:
+#     print(image_name)
+#     Image_original = plt.imread(path+image_name)
+#     Image_original = FillHolesinGold(Image_original,3)
+#     bifurcation_points,crossovers_in_pairs = Calvo_implementation(Image_original,Rc,p,Rb)
+#     crossover = middle_point_crossover(crossovers_in_pairs)
+
+#     Result_dict = {'Bifurcations':bifurcation_points,'Crossover':crossover}
+#     file = open(path_results+image_name.split(".")[0],'wb')
+#     pickle.dump(Result_dict,file)
+#     file.close()
+#     print("Dump - ",image_name)
 
 

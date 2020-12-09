@@ -5,69 +5,81 @@ import pickle
 import numpy as np
 import skimage.color as skicolor
 
-def drawpoints(img,img_name,bifur_points,cross_points):
+def drawpoints(img,img_name,bifurcations,cross_points):
     img_color = img[:,:,0:3].copy()
-    img_color[bifur_points[:,0],bifur_points[:,1]] = (255,0,0)
+    img_color[bifurcations[:,0],bifurcations[:,1]] = (255,0,0)
     img_color[cross_points[:,0],cross_points[:,1]]=(0,255,0)
-    plt.imsave("Result"+img_name,img_color,format="pdf")
-    #plt.imshow(img_color)
-    #plt.show()
+    #plt.imsave("Result"+img_name,img_color,format="pdf")
+    plt.imshow(img_color)
+    plt.show()
 
-precision_bifur = []
-recall_bifur = []
-precision_cross = []
-recall_cross = []
+def Validation(img_name,bifurcations,crossover):
 
-path = 'Imagens_pontos/'
-path_results= 'Results/'
-dir_results = os.listdir(path_results)
-dir_pontos = os.listdir(path)
-dir_results.sort()
-dir_pontos.sort()
-
-for result,img_pontos in zip(dir_results,dir_pontos):
-    file = open(path_results + result,'rb')
-    results_dict = pickle.load(file)
-    file.close()
-    img = plt.imread(path + img_pontos)
-
+    path = 'Imagens_pontos/'
+    img = plt.imread(path + img_name.split('.')[0] + '.tiff')  
     img_bifur = (img[:,:,0] == 255).astype(np.uint8)
     img_cross = ((img[:,:,0] > 120) & (img[:,:,0] < 132)).astype(np.uint8)
-    bifur_points = results_dict['Bifurcations']
-    cross_points = results_dict['Crossover']
 
-    bifur_points = np.asarray(bifur_points)
-    cross_points = np.asarray(cross_points)
+    bifurcations = np.asarray(bifurcations)
+    crossover = np.asarray(crossover)
+    #drawpoints(img,img_name,bifurcations,crossover)
 
-    drawpoints(img,img_pontos,bifur_points,cross_points)
-
+    tp,fp,fn = count.count_agreements(img_bifur,bifurcations)
     
-    tp,fp,fn = count.count_agreements(img_bifur,bifur_points)
-    print(img_pontos,result,"- Bifurcation - tp:",tp," fp:",fp," fn:",fn)
+    precision_bifur = tp/(tp+fp)
+    recall_bifur = tp/(tp+fn)
 
-    precision = tp/(tp+fp)
-    recall = tp/(tp+fn)
+    tp,fp,fn = count.count_agreements(img_cross,crossover)
 
-    precision_bifur.append(precision)
-    recall_bifur.append(recall)
+    precision_cross = tp/(tp+fp)
+    recall_cross = tp/(tp+fn)
+
+    return precision_bifur,recall_bifur,precision_cross,recall_cross
+
+file = open('results_Calvo2','rb')
+results_dict = pickle.load(file)
+
+Rc_list = results_dict['params']['Rc_list']
+p_list = results_dict['params']['p_list']
+Rb_list = results_dict['params']['Rb_list']
+
+Images = results_dict['images']
+
+precisions_bifur = []
+precisions_cross = []
+recalls_bifur = []
+recalls_cross = []
+metrics_dict = {}
+
+for Rc in Rc_list:
+    for p in p_list:
+        for Rb in Rb_list:
+            for image_name in Images:
+                bifurcations = results_dict['results'][(Rc,p,Rb)][image_name]['Bifurcations']
+                crossover = results_dict['results'][(Rc,p,Rb)][image_name]['crossover']
+                precision_bifur,recall_bifur,precision_cross,recall_cross = Validation(image_name,bifurcations,crossover)
+                precision_bifur = round(precision_bifur,4)
+                recall_bifur = round(recall_bifur,4)
+                precision_cross = round(precision_cross,4)
+                recall_cross = round(recall_cross,4)
+                metrics_dict[(Rc,p,Rb,image_name)] = {'precision_bifur':precision_bifur,'recall_bifur':recall_bifur,'precision_cross':precision_cross,'recall_cross':recall_cross}
+                print("(",Rc,p,Rb,") -- pb:",precision_bifur," rb:",recall_bifur," pc:",precision_cross," rc:",recall_cross)
+                precisions_bifur.append(precision_bifur)
+                precisions_cross.append(precision_cross)
+                recalls_bifur.append(recall_bifur)
+                recalls_cross.append(recall_cross)
 
 
-    tp,fp,fn = count.count_agreements(img_cross,cross_points)
-    print(img_pontos,result,"- Crossover - tp:",tp," fp:",fp," fn:",fn)
 
-    precision = tp/(tp+fp)
-    recall = tp/(tp+fn)
+metrics = [precisions_bifur,recalls_bifur,precisions_cross,recalls_cross]
 
-    precision_cross.append(precision)
-    recall_cross.append(recall)
-
-plt.plot(precision_bifur,recall_bifur,'or')
-plt.plot(precision_cross,recall_cross,'og')
-plt.ylabel("Recall")
-plt.xlabel("Precision")
-plt.ylim((0,1))
-plt.xlim((0,1))
-plt.savefig("Precision.x.Recall - Detection",bbox_inches='tight',format='pdf')
-plt.show()
+file = open('metrics_text2','wb')
+pickle.dump(metrics_dict,file)
+file.close()
+print("Gravado metrics_dict")
 
 
+file = open('metrics_Calvo2','wb')
+pickle.dump(metrics,file)
+file.close()
+print("Gravado metrics")
