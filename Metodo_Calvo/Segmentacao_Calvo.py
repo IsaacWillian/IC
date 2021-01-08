@@ -74,8 +74,8 @@ def Calvo_segmentation(img,Th,Tw,elem,threshold,dilation):
     return Image
 
 Image_original = plt.imread("Imagens_originais/06_test.tif") 
-mask = plt.imread("../Imagens/21_training_mask.gif")
-mask = morph.binary_erosion(mask)
+#mask = plt.imread("../Imagens/21_training_mask.gif")
+#mask = morph.binary_erosion(mask)
 
 
 th = 95
@@ -85,4 +85,5 @@ elem = 10
 
 
 Image_obtida = Calvo_segmentation(Image_original,th,tw,elem,220,2)
-Image_obtida = np.bitwise_and(Image_obtida,mask)
+#Image_obtida = np.bitwise_and(Image_obtida,mask)
+plot_image(Image_obtida,"06_test.tif")

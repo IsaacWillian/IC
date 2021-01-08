@@ -18,7 +18,9 @@ path = 'Imagens_gold/'
 dir_pontos = os.listdir(path)
 dir_pontos.sort()
 
-Rc_list = [5,6,7,8] #[8,10,12,14,16]
+#Best combination [8,5,16]
+
+Rc_list = [5,6,7,8,10,12] #[8,10,12,14,16]
 p_list = [1,2,3,4,5] #[2,3,4,5,6]
 Rb_list = [8,10,12,14,16] #[12,14,16,18,20,22]
 

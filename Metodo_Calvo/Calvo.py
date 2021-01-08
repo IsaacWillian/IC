@@ -299,7 +299,7 @@ def ShowPairs(img,pairs):
         rr,cc = skidraw.line(m[0],m[1],pair[1][0],pair[1][1])
         img_rgb[rr,cc] = [255,0,0]
     
-    plot_image(img_rgb,"Pares de crossovers")
+    #plot_image(img_rgb,"Pares de crossovers")
 
 def find_pairs(NotClassified_points,crossover_points,radius):
     pairs = []
@@ -388,7 +388,7 @@ def ShowResult(img,bifurcations,crossovers_in_pairs,NotClassified_points,Rc):
         rr,cc = skidraw.circle_perimeter(NotClassified[0],NotClassified[1],5)
         img[rr,cc] = (0,0,255)
 
-    plot_image(img,"Result20")   
+    #plot_image(img,"Result20")   
 
 def remove_pad(padding,bifurcation_points,crossover_in_pairs):
     bifurcation_points = [(bifur[0]-padding,bifur[1]-padding) for bifur in bifurcation_points]
