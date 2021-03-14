@@ -1,7 +1,0 @@
-Após fazer a dilatação
-Esqueletização usando o Stetiford thinning Method 
-(https://github.com/ShreyaPrabhu/Thinning-Algorithms/blob/master/StentifordAlgorithm/stentiford.py)
-Percorre todos os vizinhos e faz o somatório do atual menos o proximo e divide o resultado por dois, o resultado mostra a
-qual categoria o ponto pertence
-
-

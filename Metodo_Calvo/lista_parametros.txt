@@ -1,8 +1,0 @@
-#Segmentação
-
--elem (Filtro Top Hat) 12
--arr_sigma(filtro de Frangi)
--threshold(Remoção de componentes)
--range (dilatação) 1
-
-##Observações

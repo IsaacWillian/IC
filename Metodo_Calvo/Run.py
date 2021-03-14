@@ -1,3 +1,0 @@
-#import ObterResultadosCalvoeUnet
-import ValidationCalvoeUnet
-import Ler_results_CalvoeUnet
