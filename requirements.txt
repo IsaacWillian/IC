@@ -23,7 +23,7 @@ itk-registration==5.0.1
 itk-segmentation==5.0.1
 itkwidgets==0.21.1
 jedi==0.15.1
-Jinja2==2.10.1
+Jinja2==2.11.3
 joblib==0.13.2
 jsonschema==3.0.2
 jupyter==1.0.0
